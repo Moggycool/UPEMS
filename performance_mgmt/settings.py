@@ -24,8 +24,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     # local apps
-    "apps.org",
-    "apps.appraisals",
+    "apps.org.apps.OrgConfig",
+    "apps.appraisals.apps.AppraisalsConfig",
 ]
 
 MIDDLEWARE = [

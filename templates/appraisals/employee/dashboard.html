@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>My Dashboard</title>
+  </head>
+  <body>
+    <h1>Employee Dashboard</h1>
+    <p>User: {{ request.user.username }}</p>
+    <p>Employee: {{ employee.full_name }} ({{ employee.employee_no }})</p>
+
+    <p>Next: we will list evaluations here.</p>
+
+    <p><a href="/accounts/logout/">Logout</a></p>
+  </body>
+</html>
