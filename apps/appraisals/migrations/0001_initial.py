@@ -2,8 +2,8 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ("appraisals", "0001_initial"),
-    ]
+    initial = True
+
+    dependencies = []
 
     operations = []
