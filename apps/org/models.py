@@ -1,16 +1,19 @@
-""" models """
+""" Models for organizational structure: work units, employees, and reporting lines.
+"""
 from django.conf import settings
 from django.db import models
 
 
 class WorkUnit(models.Model):
+    """ Represents a work unit or department within the organization. """
     name = models.CharField(max_length=200, unique=True)
 
     def __str__(self) -> str:
-        return self.name
+        return str(self.name)
 
 
 class Employee(models.Model):
+    """ Represents an employee within the organization. """
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="employee"
     )
@@ -29,9 +32,9 @@ class Employee(models.Model):
 
 
 class ReportingLine(models.Model):
-    """
-    One row per employee that defines:
-    employee -> immediate supervisor -> unit head -> HR head
+    """ Represents the reporting line for an employee.
+        One row per employee that defines:
+        employee -> immediate supervisor -> unit head -> HR head
     """
 
     employee = models.OneToOneField(
