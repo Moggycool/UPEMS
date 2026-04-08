@@ -7,6 +7,7 @@ from apps.appraisals.models import (
     BehavioralAttribute,
     BehavioralSubmission,
     BehavioralScore,
+    PeerAssignment,
 )
 
 admin.site.register(EvaluationCycle)
@@ -14,3 +15,4 @@ admin.site.register(Evaluation)
 admin.site.register(BehavioralAttribute)
 admin.site.register(BehavioralSubmission)
 admin.site.register(BehavioralScore)
+admin.site.register(PeerAssignment)

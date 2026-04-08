@@ -142,3 +142,26 @@ class BehavioralScore(models.Model):
 
     def __str__(self) -> str:
         return f"{self.submission} / {self.attribute} = {self.score}"
+
+
+class PeerAssignment(models.Model):
+    """
+    Assigns a peer reviewer to an evaluation.
+    """
+    evaluation = models.ForeignKey(
+        Evaluation, on_delete=models.CASCADE, related_name="peer_assignments"
+    )
+    peer = models.ForeignKey(
+        Employee, on_delete=models.PROTECT, related_name="peer_assignments"
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["evaluation", "peer"], name="uniq_peer_assignment"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"PeerAssignment({self.evaluation} / {self.peer})"
