@@ -1,167 +1,102 @@
-""" models.py - DB models for appraisals app. """
+"""Models for the Performance Evaluation system, defining the structure of evaluations, 
+   tasks, behavior ratings, and peer assignments.  
+   This module contains the core data models for the appraisal system, 
+   including PerformanceEvaluation, 
+   TaskItem, BehaviorRating, and PeerAssignment. 
+   Each model is designed to capture specific aspects of the evaluation process, 
+   such as employee details, evaluation periods, task descriptions and weights, 
+   behavior attributes, and peer relationships.
+"""
 from django.db import models
-from django.utils import timezone
-
-from apps.org.models import Employee
 
 
-class EvaluationCycle(models.Model):
+class PerformanceEvaluation(models.Model):
+    """Model representing a performance evaluation for an employee, including details about 
+       the employee, evaluation period, status, and calculated scores based on tasks 
+       and behavior ratings.
+       This model captures the essential information for a performance evaluation, 
+       linking it to an employee and defining the evaluation period and status.
+       It also includes fields for storing the calculated scores for tasks and behavior, 
+       as well as the total score, which are updated based on the associated TaskItem and 
+       BehaviorRating models.
     """
-    One row per cycle, e.g. 2026-H1 or 2026-H2.
-    """
-    H1 = "H1"
-    H2 = "H2"
-    HALF_CHOICES = [(H1, "H1"), (H2, "H2")]
-
-    year = models.PositiveIntegerField()
-    half = models.CharField(max_length=2, choices=HALF_CHOICES)
-
-    start_date = models.DateField()
-    end_date = models.DateField()
-
-    is_active = models.BooleanField(default=False)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["year", "half"], name="uniq_cycle_year_half"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.year}-{self.half}"
-
-
-class Evaluation(models.Model):
-    """
-    The evaluation record for one employee in one cycle.
-    """
-    DRAFT = "DRAFT"
-    SUBMITTED = "SUBMITTED"
-    UNDER_REVIEW = "UNDER_REVIEW"
-    APPROVED = "APPROVED"
-    REOPENED = "REOPENED"
-
-    STATUS_CHOICES = [
-        (DRAFT, "Draft"),
-        (SUBMITTED, "Submitted"),
-        (UNDER_REVIEW, "Under review"),
-        (APPROVED, "Approved"),
-        (REOPENED, "Reopened"),
-    ]
-
-    employee = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, related_name="evaluations")
-    cycle = models.ForeignKey(
-        EvaluationCycle, on_delete=models.PROTECT, related_name="evaluations")
-
+    STATUS_CHOICES = [('DRAFT', 'Draft'), ('REVIEW',
+                                           'Review'), ('FINAL', 'Final')]
+    employee = models.ForeignKey('org.Employee', on_delete=models.CASCADE)
+    period = models.CharField(max_length=100)
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default=DRAFT)
+        max_length=20, choices=STATUS_CHOICES, default='DRAFT')
 
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True)
+    task_score_70 = models.FloatField(default=0.0)
+    behavior_score_30 = models.FloatField(default=0.0)
+    total_score = models.FloatField(default=0.0)
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["employee", "cycle"], name="uniq_eval_employee_cycle"),
-        ]
-
-    def __str__(self) -> str:
-        return f"Evaluation({self.employee} / {self.cycle})"
+    def __str__(self):
+        return f"{self.employee} - {self.period}"
 
 
-class BehavioralAttribute(models.Model):
+class TaskItem(models.Model):
+    """Model representing a specific task within a performance evaluation, 
+       including its description, weight, goal, and actual performance.
+       This model is linked to a PerformanceEvaluation and captures the details of 
+       individual tasks that contribute to the overall evaluation score. 
+       Each task has a description, a weight that indicates its importance in the evaluation, 
+       a goal value that represents the target performance, and an actual value that represents 
+       the employee's performance on that task. 
+       The weighted score for each task can be calculated based on the actual performance 
+       relative to the goal, multiplied by the weight.
     """
-    Seeded list of behavioral attributes and their weights (sum = 100).
-    """
-    name = models.CharField(max_length=200, unique=True)
-    weight = models.PositiveIntegerField()  # 0..100
-
-    is_active = models.BooleanField(default=True)
-
-    class Meta:
-        ordering = ["id"]
-
-    def __str__(self) -> str:
-        return f"{self.name} ({self.weight}%)"
-
-
-class BehavioralSubmission(models.Model):
-    """
-    One submission per evaluation per role (self, peer, supervisor).
-    """
-    ROLE_SELF = "SELF"
-    ROLE_PEER = "PEER"
-    ROLE_SUPERVISOR = "SUPERVISOR"
-
-    ROLE_CHOICES = [
-        (ROLE_SELF, "Self"),
-        (ROLE_PEER, "Peer"),
-        (ROLE_SUPERVISOR, "Supervisor"),
-    ]
-
     evaluation = models.ForeignKey(
-        Evaluation, on_delete=models.CASCADE, related_name="behavioral_submissions")
+        PerformanceEvaluation, related_name='tasks', on_delete=models.CASCADE)
+    description = models.TextField()
+    weight_a = models.FloatField()
+    goal_b = models.FloatField()
+    actual_c = models.FloatField()
+
+    @property
+    def weighted_score_e(self):
+        """Calculate the weighted score for this task based on the actual performance 
+           relative to the goal, multiplied by the weight. 
+           This property allows for easy retrieval of the weighted score 
+           without needing to store it in the database, ensuring that it is always up-to-date 
+           with the current values of actual performance and goal.
+        """
+        if self.goal_b > 0:
+            return (self.actual_c / self.goal_b) * self.weight_a
+        return 0
+
+
+class BehaviorRating(models.Model):
+    """Model representing a behavior rating for an employee within a performance evaluation, 
+       including the rater, role, attribute name, and rating value.
+       This model captures the ratings for various behavioral attributes that contribute to 
+       the overall evaluation score. Each rating is linked to a specific PerformanceEvaluation 
+       and includes information about who provided the rating (rater), their role in the 
+       evaluation process (self, peer, or supervisor), the name of the behavioral attribute being 
+       rated, and the rating value itself. This allows for a comprehensive assessment of an 
+       employee's behavior in addition to their task performance.
+    """
+    ROLE_CHOICES = [('SELF', 'Self'), ('PEER', 'Peer'),
+                    ('SUPERVISOR', 'Supervisor')]
+    evaluation = models.ForeignKey(
+        PerformanceEvaluation, related_name='behavior_ratings', on_delete=models.CASCADE)
+    rater = models.ForeignKey('org.Employee', on_delete=models.CASCADE)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-
-    submitted_by = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, related_name="behavioral_submissions_made")
-
-    is_submitted = models.BooleanField(default=False)
-    submitted_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["evaluation", "role", "submitted_by"], name="uniq_submission"),
-        ]
-
-    def __str__(self) -> str:
-        return f"BehavioralSubmission({self.evaluation} / {self.role} / {self.submitted_by})"
-
-
-class BehavioralScore(models.Model):
-    """
-    Score per attribute for a given submission.
-    """
-    submission = models.ForeignKey(
-        BehavioralSubmission, on_delete=models.CASCADE, related_name="scores")
-    attribute = models.ForeignKey(
-        BehavioralAttribute, on_delete=models.PROTECT, related_name="scores")
-
-    # Score 1..5 (you can enforce in forms; DB constraint optional later)
-    score = models.PositiveSmallIntegerField()
-
-    comment = models.TextField(blank=True, default="")
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["submission", "attribute"], name="uniq_submission_attribute"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.submission} / {self.attribute} = {self.score}"
+    attribute_name = models.CharField(max_length=255)  # e.g., "Punctuality"
+    rating = models.IntegerField()  # 1 to 4 scale
 
 
 class PeerAssignment(models.Model):
-    """
-    Assigns a peer reviewer to an evaluation.
+    """Model representing the assignment of a peer to a performance evaluation, 
+       including the evaluation, peer, and completion status.
+       This model captures the relationship between a performance evaluation and the peers 
+       assigned to provide feedback or ratings for that evaluation. Each PeerAssignment links 
+       a specific PerformanceEvaluation to an Employee who is acting as a peer rater. 
+       The model also includes a boolean field to indicate whether the peer has completed their 
+       assigned tasks or ratings, allowing for tracking of the evaluation process and ensuring 
+       that all necessary feedback is collected before finalizing the evaluation.
     """
     evaluation = models.ForeignKey(
-        Evaluation, on_delete=models.CASCADE, related_name="peer_assignments"
-    )
-    peer = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, related_name="peer_assignments"
-    )
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["evaluation", "peer"], name="uniq_peer_assignment"
-            ),
-        ]
-
-    def __str__(self) -> str:
-        return f"PeerAssignment({self.evaluation} / {self.peer})"
+        PerformanceEvaluation, related_name='assigned_peers', on_delete=models.CASCADE)
+    peer = models.ForeignKey('org.Employee', on_delete=models.CASCADE)
+    is_completed = models.BooleanField(default=False)

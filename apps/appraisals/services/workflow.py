@@ -5,10 +5,12 @@
     for accurate scoring and feedback collection.
 """
 # apps/appraisals/services/workflow.py
-from ..models import PeerAssignment
+from django.apps import apps
 
 
 def assign_peers_to_evaluation(evaluation, peer_employees):
     """peer_employees is a list of Employee objects"""
+    peer_assignment_model = apps.get_model("appraisals", "PeerAssignment")
     for emp in peer_employees:
-        PeerAssignment.objects.get_or_create(evaluation=evaluation, peer=emp)
+        peer_assignment_model.objects.get_or_create(
+            evaluation=evaluation, peer=emp)
